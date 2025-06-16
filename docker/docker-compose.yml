@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: translation-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: translation_user
+      RABBITMQ_DEFAULT_PASS: translation_pass
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: translation-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: translation-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: translation_db
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    restart: unless-stopped
+
+  translation-api:
+    build:
+      context: ../translation-api
+      dockerfile: Dockerfile
+    container_name: translation-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=mongodb://translation_user:translation_pass@mongodb:27017/translation_db
+      - RABBITMQ_URL=amqp://translation_user:translation_pass@rabbitmq:5672
+      - QUEUE_NAME=translation_queue
+      - API_RATE_LIMIT=100
+    depends_on:
+      - mongodb
+      - rabbitmq
+    restart: unless-stopped
+
+  translation-worker:
+    build:
+      context: ../translation-worker
+      dockerfile: Dockerfile
+    container_name: translation-worker
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://translation_user:translation_pass@mongodb:27017/translation_db
+      - RABBITMQ_URL=amqp://translation_user:translation_pass@rabbitmq:5672
+      - QUEUE_NAME=translation_queue
+      - POLL_INTERVAL=1000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - mongodb
+      - rabbitmq
+    restart: unless-stopped
+
+  translation-frontend:
+    build:
+      context: ../translation-frontend
+      dockerfile: Dockerfile
+    container_name: translation-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - translation-api
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+  redis_data:
+  mongodb_data:
+

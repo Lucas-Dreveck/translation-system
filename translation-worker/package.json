@@ -1,0 +1,26 @@
+{
+  "name": "translation-worker",
+  "version": "1.0.0",
+  "description": "Serviço consumidor para processamento de traduções",
+  "main": "worker.js",
+  "scripts": {
+    "start": "node worker.js",
+    "dev": "nodemon worker.js",
+    "test": "jest"
+  },
+  "keywords": ["translation", "worker", "redis", "mongodb", "queue"],
+  "author": "Estudante ADS",
+  "license": "MIT",
+  "dependencies": {
+    "redis": "^4.6.10",
+    "amqplib": "^0.10.3",
+    "mongoose": "^8.0.3",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0"
+  }
+}
+
